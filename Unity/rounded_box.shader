@@ -4,7 +4,8 @@ Shader "Unlit/rounded box"
     {
         _MainTex ("Texture", 2D) = "white" {} //texture needed for texture uv space bs
         _Color ("Color", Color) = (0.2, 0.7, 1)
-        _Rounding ("Rounding", Range(0,0.5)) = 0.25
+        _Rounding ("Rounding", Range(0,1)) = 0.25
+        _Dimensions ("Dimensions", float) = 1
     }
     SubShader
     {
@@ -18,12 +19,13 @@ Shader "Unlit/rounded box"
         {
             ZWrite Off
             Blend One Zero
-            AlphaToMask On  
+            AlphaToMask On
 
             CGPROGRAM
 
             float4 _Color;
             float _Rounding;
+            float _Dimensions;
 
             #pragma vertex vert
             #pragma fragment frag
@@ -53,24 +55,37 @@ Shader "Unlit/rounded box"
                 return o;
             }
 
-            float rounded_box_sdf(float2 p, float2 dimensions, float rounding) {
-                p += -0.5; p *= 2;
-                
-                float2 d = abs(p) - dimensions * 0.5 + rounding;
-                return 1 - length(max(d, 0)) - rounding;
+            float2 rounded_box_sdf(float2 p, float dimensions, float rounding) {
+                p *= 2; p -= 1;
+                p = abs(p);                
+
+                if (dimensions >= 1)
+                {
+                    p -= float2(rounding*(1/dimensions), rounding);
+                    p.x -= (1-1/dimensions);
+                    p.x *= dimensions;
+                }
+                else
+                {
+                    //dimensions = 1/dimensions;
+                    p -= float2(rounding, rounding*(dimensions));
+                    p.y -= (1-dimensions);
+                    p.y *= 1/dimensions;
+                }
+
+                p = max(p,0);
+                p = length(p);
+                p += rounding;
+                return p-1;
             }
 
             float4 frag (v2f i) : SV_Target
             {
                 float4 col = _Color;
                 
-                float dimension = 2;
-                float2 dimensions = float2(dimension, dimension);
-                _Rounding *= dimensions.x;
+                float d = rounded_box_sdf(i.uv.xy, _Dimensions, _Rounding);
 
-                float alpha = rounded_box_sdf(i.uv.xy, dimensions, _Rounding);
-
-                col.a *= alpha >= 1 - _Rounding * 2 ? 1 : 0;
+                col.a = d < 0 ? 1 : 0;
 
                 return col;
             }
