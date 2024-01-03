@@ -57,7 +57,9 @@ Shader "Unlit/rounded box"
 
             float2 rounded_box_sdf(float2 p, float dimensions, float rounding) {
                 p *= 2; p -= 1;
-                p = abs(p);                
+                rounding = 1-rounding;
+
+                p = abs(p);
 
                 if (dimensions >= 1)
                 {
@@ -85,7 +87,9 @@ Shader "Unlit/rounded box"
                 
                 float d = rounded_box_sdf(i.uv.xy, _Dimensions, _Rounding);
 
-                col.a = d < 0 ? 1 : 0;
+                float a = d <= 0 ? 1 : -1;
+
+                clip(a);
 
                 return col;
             }
